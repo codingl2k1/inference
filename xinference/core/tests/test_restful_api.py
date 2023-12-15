@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import os.path
 import sys
 
 import openai
@@ -376,6 +377,104 @@ def test_restful_api_for_embedding(setup):
     response = requests.get(f"{endpoint}/v1/models")
     response_data = response.json()
     assert len(response_data) == 0
+
+
+@pytest.mark.parametrize("model_format, quantization", [("ggmlv3", "q4_0")])
+def test_function_call(setup, model_format, quantization):
+    model_name = "chatglm3"
+    model_size = 6
+
+    endpoint, _ = setup
+    url = f"{endpoint}/v1/models"
+
+    # list
+    response = requests.get(url)
+    response_data = response.json()
+    assert len(response_data) == 0
+
+    # launch
+    payload = {
+        "model_uid": "test_tool",
+        "model_name": model_name,
+        "model_size_in_billions": model_size,
+        "model_format": model_format,
+        "quantization": quantization,
+    }
+
+    response = requests.post(url, json=payload)
+    response_data = response.json()
+    model_uid_res = response_data["model_uid"]
+    assert model_uid_res == "test_tool"
+
+    response = requests.get(url)
+    response_data = response.json()
+    assert len(response_data) == 1
+
+    test_data = os.path.join(os.path.dirname(__file__), "../../../test_data.jsonl")
+    test_data = os.path.abspath(test_data)
+    with open(test_data, "r") as f:
+        lines = f.readlines()
+        data = [json.loads(s) for s in lines]
+    data = [d for d in data if d["functions"]]
+    print(len(data), data[0])
+
+    # openai client
+    import openai
+
+    client = openai.Client(api_key="not empty", base_url=f"{endpoint}/v1")
+    result = []
+    for i, d in enumerate(data):
+        tools = [{"type": "function", "function": f} for f in d["functions"]]
+        completion = client.chat.completions.create(
+            model=model_uid_res,
+            messages=[d["user"]],
+            tools=tools,
+        )
+        tool_calls = d["assistant"].get("tool_calls")
+        actual = expect = None
+        if not tool_calls:
+            r = bool(
+                completion.choices[0].message.content
+                and len(completion.choices[0].message.tool_calls) == 0
+            )
+            print(f'expect: {d["assistant"]["content"]}')
+            tc = completion.choices[0].message.tool_calls
+            tc_list = [t.dict()["function"] for t in tc]
+            print(f"actual: {tc_list}")
+            if not r:
+                actual = tc_list
+                expect = d["assistant"]["content"]
+        else:
+            for t in tool_calls:
+                t["arguments"] = json.dumps(t["arguments"])
+            print(f"expect: {tool_calls}")
+            tc = completion.choices[0].message.tool_calls
+            tc_list = [t.dict()["function"] for t in tc]
+            print(f"actual: {tc_list}")
+            print("*" * 200)
+            r = tc_list == tool_calls
+            if not r:
+                actual = tc_list
+                expect = tool_calls
+        result.append((r, actual, expect))
+        print(f"[{i+1}/{len(data)}] {r}")
+    output = os.path.join(
+        os.path.dirname(__file__), f"../../../out_{model_name}_{model_size}.csv"
+    )
+    with open(output, "w") as f:
+        f.writelines(
+            [
+                repr(r[0])
+                + "\t"
+                + repr(r[1])
+                + "\t"
+                + repr(r[2])
+                + "\t"
+                + json.dumps(d)
+                + "\n"
+                for r, d in zip(result, data)
+            ]
+        )
 
 
 def _check_invalid_tool_calls(endpoint, model_uid_res):
