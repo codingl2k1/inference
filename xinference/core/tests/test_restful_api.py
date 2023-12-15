@@ -382,6 +382,8 @@ def test_restful_api_for_embedding(setup):
 @pytest.mark.parametrize("model_format, quantization", [("pytorch", None)])
 def test_function_call(setup, model_format, quantization):
     model_name, model_size = "chatglm3", 6
+    # model_name, model_size = "qwen-chat", 7
+    # model_name, model_size = "gorilla-openfunctions-v1", 7
 
     endpoint, _ = setup
     url = f"{endpoint}/v1/models"
@@ -424,39 +426,44 @@ def test_function_call(setup, model_format, quantization):
     result = []
     for i, d in enumerate(data):
         tools = [{"type": "function", "function": f} for f in d["functions"]]
-        completion = client.chat.completions.create(
-            model=model_uid_res,
-            messages=[d["user"]],
-            tools=tools,
-            max_tokens=200,
-            temperature=0.1,
-        )
-        tool_calls = d["assistant"].get("tool_calls")
-        actual = expect = None
-        if not tool_calls:
-            r = bool(
-                completion.choices[0].message.content
-                and len(completion.choices[0].message.tool_calls) == 0
+        try:
+            completion = client.chat.completions.create(
+                model=model_uid_res,
+                messages=[d["user"]],
+                tools=tools,
+                max_tokens=200,
+                temperature=0.1,
             )
-            print(f'expect: {d["assistant"]["content"]}')
-            tc = completion.choices[0].message.tool_calls
-            tc_list = [t.dict()["function"] for t in tc]
-            print(f"actual: {tc_list}")
-            if not r:
-                actual = tc_list
-                expect = d["assistant"]["content"]
-        else:
-            for t in tool_calls:
-                t["arguments"] = json.dumps(t["arguments"])
-            print(f"expect: {tool_calls}")
-            tc = completion.choices[0].message.tool_calls
-            tc_list = [t.dict()["function"] for t in tc]
-            print(f"actual: {tc_list}")
-            print("*" * 200)
-            r = tc_list == tool_calls
-            if not r:
-                actual = tc_list
-                expect = tool_calls
+            tool_calls = d["assistant"].get("tool_calls")
+            actual = expect = None
+            if not tool_calls:
+                r = bool(
+                    completion.choices[0].message.content
+                    and len(completion.choices[0].message.tool_calls) == 0
+                )
+                print(f'expect: {d["assistant"]["content"]}')
+                tc = completion.choices[0].message.tool_calls
+                tc_list = [t.dict()["function"] for t in tc]
+                print(f"actual: {tc_list}")
+                if not r:
+                    actual = tc_list
+                    expect = d["assistant"]["content"]
+            else:
+                for t in tool_calls:
+                    t["arguments"] = json.dumps(t["arguments"])
+                print(f"expect: {tool_calls}")
+                tc = completion.choices[0].message.tool_calls
+                tc_list = [t.dict()["function"] for t in tc]
+                print(f"actual: {tc_list}")
+                print("*" * 200)
+                r = tc_list == tool_calls
+                if not r:
+                    actual = tc_list
+                    expect = tool_calls
+        except Exception as e:
+            r = False
+            actual = str(e)
+            expect = d["assistant"]
         result.append((r, actual, expect))
         print(f"[{i+1}/{len(data)}] {r}")
     output = os.path.join(
