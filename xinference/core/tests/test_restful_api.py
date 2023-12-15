@@ -379,10 +379,9 @@ def test_restful_api_for_embedding(setup):
     assert len(response_data) == 0
 
 
-@pytest.mark.parametrize("model_format, quantization", [("ggmlv3", "q4_0")])
+@pytest.mark.parametrize("model_format, quantization", [("pytorch", None)])
 def test_function_call(setup, model_format, quantization):
-    model_name = "chatglm3"
-    model_size = 6
+    model_name, model_size = "chatglm3", 6
 
     endpoint, _ = setup
     url = f"{endpoint}/v1/models"
@@ -429,6 +428,8 @@ def test_function_call(setup, model_format, quantization):
             model=model_uid_res,
             messages=[d["user"]],
             tools=tools,
+            max_tokens=200,
+            temperature=0.1,
         )
         tool_calls = d["assistant"].get("tool_calls")
         actual = expect = None
