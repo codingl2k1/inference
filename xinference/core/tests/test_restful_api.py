@@ -457,7 +457,9 @@ def test_function_call(setup, model_format, quantization):
                 print("*" * 200)
                 r = tc_list == tool_calls
                 if not r:
-                    actual = tc_list
+                    actual = (
+                        tc_list if tc_list else completion.choices[0].message.content
+                    )
                     expect = tool_calls
         except Exception as e:
             r = False
