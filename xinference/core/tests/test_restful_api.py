@@ -443,6 +443,8 @@ def test_function_call(setup, model_format, quantization):
                 print(f'expect: {d["assistant"]["content"]}')
                 tc = completion.choices[0].message.tool_calls
                 tc_list = [t.dict()["function"] for t in tc]
+                if not tc_list:
+                    tc_list = completion.choices[0].message.content
                 print(f"actual: {tc_list}")
                 if not r:
                     actual = tc_list
