@@ -466,7 +466,7 @@ def test_function_call(setup, model_format, quantization):
         result.append((r, actual, expect, request))
         print(f"[{i+1}/{len(data)}] {r}")
     output = os.path.join(
-        os.path.dirname(__file__), f"../../../out_{model_name}_{model_size}.csv"
+        os.path.dirname(__file__), f"../../../out_{model_name}_{model_size}.jsonl"
     )
     with open(output, "w") as f:
         f.writelines(
