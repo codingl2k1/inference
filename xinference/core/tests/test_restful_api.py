@@ -416,7 +416,6 @@ def test_function_call(setup, model_format, quantization):
     with open(test_data, "r") as f:
         lines = f.readlines()
         data = [json.loads(s) for s in lines]
-    data = [d for d in data if d["functions"]]
     print(len(data), data[0])
 
     # openai client
@@ -425,14 +424,14 @@ def test_function_call(setup, model_format, quantization):
     client = openai.Client(api_key="not empty", base_url=f"{endpoint}/v1")
     result = []
     for i, d in enumerate(data):
+        assert d["functions"]
         tools = [{"type": "function", "function": f} for f in d["functions"]]
+        request = dict(messages=[d["user"]], tools=tools)
         try:
             completion = client.chat.completions.create(
                 model=model_uid_res,
                 messages=[d["user"]],
                 tools=tools,
-                max_tokens=200,
-                temperature=0.1,
             )
             tool_calls = d["assistant"].get("tool_calls")
             actual = expect = None
@@ -464,7 +463,7 @@ def test_function_call(setup, model_format, quantization):
             r = False
             actual = str(e)
             expect = d["assistant"]
-        result.append((r, actual, expect))
+        result.append((r, actual, expect, request))
         print(f"[{i+1}/{len(data)}] {r}")
     output = os.path.join(
         os.path.dirname(__file__), f"../../../out_{model_name}_{model_size}.csv"
@@ -472,13 +471,14 @@ def test_function_call(setup, model_format, quantization):
     with open(output, "w") as f:
         f.writelines(
             [
-                repr(r[0])
-                + "\t"
-                + repr(r[1])
-                + "\t"
-                + repr(r[2])
-                + "\t"
-                + json.dumps(d)
+                json.dumps(
+                    {
+                        "Match": r[0],
+                        "Actual": r[1],
+                        "Expect": r[2],
+                        "Request": r[3],
+                    }
+                )
                 + "\n"
                 for r, d in zip(result, data)
             ]
