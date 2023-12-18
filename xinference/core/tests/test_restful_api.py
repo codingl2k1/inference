@@ -453,13 +453,13 @@ def test_function_call(setup, model_format, quantization):
                 print(f"expect: {tool_calls}")
                 tc = completion.choices[0].message.tool_calls
                 tc_list = [t.dict()["function"] for t in tc]
+                if not tc_list:
+                    tc_list = completion.choices[0].message.content
                 print(f"actual: {tc_list}")
                 print("*" * 200)
                 r = tc_list == tool_calls
                 if not r:
-                    actual = (
-                        tc_list if tc_list else completion.choices[0].message.content
-                    )
+                    actual = tc_list
                     expect = tool_calls
         except Exception as e:
             r = False
