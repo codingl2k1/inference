@@ -161,7 +161,9 @@ class ChatModelMixin:
             if tools:
                 tool_desc = """{name_for_model}: Call this tool to interact with the {name_for_human} API. What is the {name_for_human} API useful for? {description_for_model} Parameters: {parameters} Format the arguments as a JSON object."""
 
-                react_instruction = """Answer the following questions as best you can. You have access to the following APIs:
+                react_instruction = """You are a helpful assistant. Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous.
+
+Answer the following questions as best you can. You have access to the following APIs:
 
 {tools_text}
 
