@@ -446,9 +446,8 @@ def test_function_call(setup, model_format, quantization):
                 if not tc_list:
                     tc_list = completion.choices[0].message.content
                 print(f"actual: {tc_list}")
-                if not r:
-                    actual = tc_list
-                    expect = d["assistant"]["content"]
+                actual = tc_list
+                expect = d["assistant"]["content"]
             else:
                 for t in tool_calls:
                     t["arguments"] = json.dumps(t["arguments"])
