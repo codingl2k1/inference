@@ -422,6 +422,10 @@ def test_function_call(setup, model_format, quantization):
     import openai
 
     client = openai.Client(api_key="not empty", base_url=f"{endpoint}/v1")
+    system_prompt = {
+        "role": "system",
+        "content": f"You are a helpful assistant. Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous.",
+    }
     result = []
     for i, d in enumerate(data):
         assert d["functions"]
@@ -430,7 +434,7 @@ def test_function_call(setup, model_format, quantization):
         try:
             completion = client.chat.completions.create(
                 model=model_uid_res,
-                messages=[d["user"]],
+                messages=[system_prompt, d["user"]],
                 tools=tools,
             )
             tool_calls = d["assistant"].get("tool_calls")
